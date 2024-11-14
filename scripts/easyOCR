@@ -1,0 +1,42 @@
+import cv2
+import easyocr
+
+trigger_words = ['@Crypto_Sliv_Alliance','@Crypto_Sliv_','@Crypto_Sliv_All','Sliv_Alliance', 'Sliv' , 'Alliance','@Crypto','T.ME/CRYPTOSHAURMA','CRYPTOSHAURMA']
+
+def censor_and_replace_text(image_path, trigger_words, watermark_path):
+    # инициализация OCR с помощью доступных языковых моделей
+    reader = easyocr.Reader(['en'])
+
+    # чтение изображения с помощью OCR
+    result = reader.readtext(image_path)
+
+    # инициализация cv2
+    image = cv2.imread(image_path)
+    watermark = cv2.imread(watermark_path, cv2.IMREAD_UNCHANGED)  # Load the watermark image with alpha channel
+
+    # определение координат для прямоугольника
+    rectangle_coords = None
+
+    # проход по результатам распознавания текста
+    for detection in result:
+        for word in trigger_words:
+            if word in detection[1]:
+                rectangle_coords = detection[0]
+                print('нужный текст найден!')
+                break
+        if rectangle_coords is not None:
+            break
+
+    # вставка водяного знака вместо обнаруженного текста
+    if rectangle_coords is not None:
+        x, y, x2, y2 = map(int, rectangle_coords)  # Unpack and convert coordinates to integers
+        overlay = image[y:y2, x:x2]
+        alpha = watermark[:, :, 3] / 255.0
+        overlay = cv2.addWeighted(watermark[:, :, :3], alpha, overlay, 1 - alpha, 0, overlay)
+        image[y:y2, x:x2] = overlay
+
+    # сохранение изображения с изменениями
+    cv2.imwrite('censored_' + image_path, image)
+
+# пример использования функции
+censor_and_replace_text('fortest.jpg', trigger_words, 'watermark.jpg')
